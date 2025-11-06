@@ -1,47 +1,68 @@
-version: "3.9"
-
 services:
-  mongo:
-    image: mongo:7.0
-    container_name: mongodb
-    restart: always
+  # -------------------- FRONTEND --------------------
+  frontend:
+    image: nginx:latest
+    container_name: jardin_frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - api
+
+  # -------------------- API --------------------
+  api:
+    build: ./api
+    container_name: jardin_api
+    ports:
+      - "3000:3000"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: Kajubva
+      - MONGO_URI=mongodb://mongo-primary:27017/jardin
+    depends_on:
+      mongo-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -------------------- MONGO PRIMARY --------------------
+  mongo-primary:
+    image: mongo:7.0
+    container_name: jardin_mongo_primary
+    restart: always
     ports:
       - "27017:27017"
     volumes:
-      - ./mongo-data:/data/db
-    networks:
-      - app-net
+      - mongo-primary-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  api: 
-    build: ./api
-    container_name: java-api
-    restart: always
-    depends_on:
-      - mongo
-    environment:
-      MONGO_URI: mongodb://admin:admin123@mongo:27017/proyecto?authSource=admin
-      PORT: 8080
-    ports:
-      - "8080:8080"
-    networks:
-      - app-net
-
-  frontend:
-    image: nginx:alpine
-    container_name: web-frontend
+  # -------------------- MONGO REPLICA --------------------
+  mongo-replica:
+    image: mongo:7.0
+    container_name: jardin_mongo_replica
     restart: always
     ports:
-      - "80:80"
+      - "27018:27017"
     volumes:
-      - ./frontend:/usr/share/nginx/html
-    depends_on:
-      - api
-    networks:
-      - app-net
+      - mongo-replica-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-networks:
-  app-net:
+# -------------------- VOLUMENES --------------------
+volumes:
+  mongo-primary-data:
+  mongo-replica-data:

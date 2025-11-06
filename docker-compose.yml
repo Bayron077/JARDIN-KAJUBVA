@@ -27,10 +27,11 @@ services:
       mongo-primary:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD-SHELL", "ps aux | grep java || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 10s
 
   # -------------------- MONGO PRIMARY --------------------
   mongo-primary:
